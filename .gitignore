@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+.vercel
+.vite
+*.tsbuildinfo
+.env
+.env.*
+*.local
+.DS_Store
