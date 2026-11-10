@@ -65,13 +65,13 @@ export function ProtocolInfoModal({ open, onClose }: ProtocolInfoModalProps) {
           </li>
           <li>
             <strong>Multi-QR Grid &amp; RGB 3-Channel:</strong> Untuk kecepatan tinggi tanpa
-            internet, aktifkan grid <code>2×1 / 2×2</code> (hingga 4 QR per frame) atau mode warna{' '}
-            <code>RGB</code> (3 QR berbeda di channel R, G, dan B secara bersamaan — hingga 12 paket
-            per frame pada mode 2×2 RGB!).
+            internet, aktifkan grid <code>2x1 / 2x2</code> (hingga 4 QR per frame) atau mode warna{' '}
+            <code>RGB</code> (3 QR berbeda di channel R, G, dan B secara bersamaan, hingga 12 paket
+            per frame pada mode 2x2 RGB!).
           </li>
           <li>
             <strong>Tips Scan Optimal:</strong> Atur kecerahan layar pengirim ~75%, hindari pantulan
-            lampu langsung, jarak kamera 20–35 cm. Mulai dari <strong>1× Standar</strong> bila
+            lampu langsung, jarak kamera 20-35 cm. Mulai dari <strong>1x Standar</strong> bila
             cahaya redup, lalu naikkan ke <strong>Quad / RGB / Turbo</strong> di layar terang.
           </li>
         </ol>

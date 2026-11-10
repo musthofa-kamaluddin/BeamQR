@@ -19,7 +19,7 @@ export function HomePage({ headingRef, themeKey, onLinkClick }: HomePageProps) {
               AIR-GAPPED OPTICAL LINK
             </span>
             <span className="pixel-badge" data-tone="amber">
-              NO INTERNET • NO WIFI
+              NO INTERNET / NO WIFI
             </span>
           </div>
 
@@ -34,7 +34,7 @@ export function HomePage({ headingRef, themeKey, onLinkClick }: HomePageProps) {
             browser, arahkan kamera, dan biarkan blok data tersusun otomatis.
           </p>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, paddingTop: 4 }}>
+          <div className="hero-cta-row">
             <a
               href="/send"
               onClick={onLinkClick('/send')}
@@ -58,12 +58,12 @@ export function HomePage({ headingRef, themeKey, onLinkClick }: HomePageProps) {
           </div>
 
           <div className="spec-strip mono">
-            <span>2×2 QUAD GRID (4×)</span>
-            <span aria-hidden="true">•</span>
-            <span>RGB COLOR QR (3×)</span>
-            <span aria-hidden="true">•</span>
+            <span>2x2 QUAD GRID (4x)</span>
+            <span aria-hidden="true">/</span>
+            <span>RGB COLOR QR (3x)</span>
+            <span aria-hidden="true">/</span>
             <span>LT FOUNTAIN + GF(2)</span>
-            <span aria-hidden="true">•</span>
+            <span aria-hidden="true">/</span>
             <span>OFFLINE PWA</span>
           </div>
         </div>
@@ -146,9 +146,9 @@ export function HomePage({ headingRef, themeKey, onLinkClick }: HomePageProps) {
             untuk memancarkan aliran QR berkecepatan stabil.
           </p>
           <div className="route-meta mono">
-            <span>• Mode LT &amp; Cyclic</span>
-            <span>• Layar Penuh</span>
-            <span>• Wake Lock</span>
+            <span>- Mode LT &amp; Cyclic</span>
+            <span>- Layar Penuh</span>
+            <span>- Wake Lock</span>
           </div>
         </a>
 
@@ -170,9 +170,9 @@ export function HomePage({ headingRef, themeKey, onLinkClick }: HomePageProps) {
             file setelah hash SHA-256 terkonfirmasi cocok.
           </p>
           <div className="route-meta mono">
-            <span>• Hybrid Decoder</span>
-            <span>• Peta Blok Live</span>
-            <span>• Senter &amp; Multi-Kamera</span>
+            <span>- Hybrid Decoder</span>
+            <span>- Peta Blok Live</span>
+            <span>- Senter &amp; Multi-Kamera</span>
           </div>
         </a>
 

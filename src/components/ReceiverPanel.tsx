@@ -121,12 +121,12 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
   })();
 
   return (
-    <div className="page-enter stack" style={{ gap: 18 }}>
+    <div className="page-enter stack" style={{ gap: 16 }}>
       <div className="page-banner">
         <div className="stack" style={{ gap: 6 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <span className="pixel-badge" data-tone="sky">
-              ROUTE // /RECEIVE • OPTICAL SCANNER
+              ROUTE // /RECEIVE | OPTICAL SCANNER
             </span>
             {scanner.detectedRgb && (
               <span className="pixel-badge" data-tone="amber">
@@ -138,8 +138,8 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
             Pemindai Kamera QR
           </h1>
           <p className="card-meta" style={{ maxWidth: '62ch' }}>
-            Mendukung pemindaian tunggal, <strong>Multi-QR Grid (2×1 / 2×2)</strong>, dan{' '}
-            <strong>RGB Color (3×)</strong> secara otomatis dalam satu frame kamera.
+            Mendukung pemindaian tunggal, <strong>Multi-QR Grid (2x1 / 2x2)</strong>, dan{' '}
+            <strong>RGB Color (3x)</strong> secara otomatis dalam satu frame kamera.
           </p>
         </div>
         <span className="status-pill" data-tone={statusMeta.tone}>
@@ -151,11 +151,11 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
       <div className="bento-grid">
         {/* Left Column: Live Camera Viewfinder */}
         <section className="pixel-card stack" aria-label="Pemindai kamera QR">
-          <div className="card-header" style={{ marginBlockEnd: 4 }}>
+          <div className="card-header" style={{ marginBlockEnd: 2 }}>
             <div>
               <h2 className="card-title">Jendela Kamera</h2>
               <p className="card-meta">
-                Posisikan seluruh kotak (atau grid 2×2) di dalam bingkai kamera.
+                Posisikan seluruh kotak (atau grid 2x2) di dalam bingkai kamera.
               </p>
             </div>
             <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--fg-secondary)' }}>
@@ -188,18 +188,22 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
             )}
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <div className="action-bar">
             {!scanner.isScanning ? (
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary action-main"
                 onClick={() => void scanner.startCamera()}
               >
                 <Camera size={16} aria-hidden="true" />
                 Mulai Kamera
               </button>
             ) : (
-              <button type="button" className="btn btn-danger" onClick={scanner.stopCamera}>
+              <button
+                type="button"
+                className="btn btn-danger action-main"
+                onClick={scanner.stopCamera}
+              >
                 <CameraOff size={16} aria-hidden="true" />
                 Matikan Kamera
               </button>
@@ -223,7 +227,7 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
             </button>
 
             {scanner.devices.length > 1 && (
-              <div style={{ marginInlineStart: 'auto', minWidth: 160 }}>
+              <div className="camera-picker-wrap">
                 <label htmlFor={cameraSelectId} className="visually-hidden">
                   Pilih Kamera
                 </label>
@@ -274,7 +278,7 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
                 : scanner.backend === 'jsqr-main'
                   ? 'jsQR Main'
                   : 'jsQR Worker'}
-              {scanner.resolution ? ` • ${scanner.resolution.width}×${scanner.resolution.height}` : ''}
+              {scanner.resolution ? ` | ${scanner.resolution.width}x${scanner.resolution.height}` : ''}
             </span>
           </div>
 
@@ -308,7 +312,7 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
                 }
               >
                 <option value="auto">Auto (Mono + RGB)</option>
-                <option value="rgb">Paksa Split RGB (3×)</option>
+                <option value="rgb">Paksa Split RGB (3x)</option>
                 <option value="mono">Mono Saja</option>
               </select>
             </div>
@@ -331,7 +335,7 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
               onChange={(e) => scanner.setMultiScan(e.target.checked)}
               style={{ width: 18, height: 18 }}
             />
-            Scan Multi-QR per frame (Grid 2×1 / 2×2)
+            Scan Multi-QR per frame (Grid 2x1 / 2x2)
           </label>
 
           {snapshot.manifest ? (
@@ -380,7 +384,7 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
                 {snapshot.bufferedPreManifest > 0
                   ? `${snapshot.bufferedPreManifest} paket data tertangkap; menunggu frame Manifest dari pengirim...`
                   : snapshot.invalidScans > 0
-                    ? `Terbaca ${snapshot.invalidScans} QR non-BeamQR atau frame korup — pastikan kamera fokus ke seluruh kotak QR.`
+                    ? `Terbaca ${snapshot.invalidScans} QR non-BeamQR atau frame korup - pastikan kamera fokus ke seluruh kotak QR.`
                     : 'Menunggu frame Manifest atau Data QR pertama dari pengirim.'}
               </span>
             </div>
@@ -398,13 +402,13 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
             <div className="stat-cell">
               <span className="stat-label">Kecepatan Efektif</span>
               <span className="stat-value metric">
-                {throughputBps > 0 ? `${(throughputBps / 1024).toFixed(1)} KB/s` : '—'}
+                {throughputBps > 0 ? `${(throughputBps / 1024).toFixed(1)} KB/s` : '-'}
               </span>
             </div>
             <div className="stat-cell">
               <span className="stat-label">Hit QR / Kamera</span>
               <span className="stat-value metric">
-                {scanner.isScanning ? `${scanner.rawQrHits} • ${scanner.scanFps} FPS` : '—'}
+                {scanner.isScanning ? `${scanner.rawQrHits} | ${scanner.scanFps} FPS` : '-'}
               </span>
             </div>
           </div>

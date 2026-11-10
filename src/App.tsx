@@ -165,8 +165,8 @@ export function App() {
 
       <footer className="site-footer">
         <div className="container footer-inner">
-          <span>BeamQR • Optical Fountain (LT) + Base45 + Deflate + SHA-256</span>
-          <span className="mono">100% Client-Side • Zero Network</span>
+          <span>BeamQR | Optical Fountain (LT) + Base45 + Deflate + SHA-256</span>
+          <span className="mono">100% Client-Side | Zero Network</span>
         </div>
       </footer>
 

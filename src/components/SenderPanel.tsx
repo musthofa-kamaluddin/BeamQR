@@ -34,10 +34,10 @@ const PRESETS: Record<
   SpeedPreset,
   { label: string; badge: string; grid: GridLayout; color: ColorMode; block: number; fps: number }
 > = {
-  standard: { label: '1× Standar', badge: '1 QR', grid: '1x1', color: 'mono', block: 140, fps: 8 },
-  rgb: { label: '3× RGB', badge: '3 CH', grid: '1x1', color: 'rgb', block: 120, fps: 7 },
-  quad: { label: '4× Quad', badge: '2×2', grid: '2x2', color: 'mono', block: 100, fps: 7 },
-  turbo: { label: '12× Turbo', badge: '2×2 RGB', grid: '2x2', color: 'rgb', block: 100, fps: 6 },
+  standard: { label: '1x Standar', badge: '1 QR', grid: '1x1', color: 'mono', block: 140, fps: 8 },
+  rgb: { label: '3x RGB', badge: '3 CH', grid: '1x1', color: 'rgb', block: 120, fps: 7 },
+  quad: { label: '4x Quad', badge: '2x2', grid: '2x2', color: 'mono', block: 100, fps: 7 },
+  turbo: { label: '12x Turbo', badge: '2x2 RGB', grid: '2x2', color: 'rgb', block: 100, fps: 6 },
 };
 
 export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
@@ -291,18 +291,18 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
     : 0;
 
   return (
-    <div className="page-enter stack" style={{ gap: 18 }}>
+    <div className="page-enter stack" style={{ gap: 16 }}>
       <div className="page-banner">
         <div className="stack" style={{ gap: 6 }}>
           <span className="pixel-badge" data-tone="mint">
-            ROUTE // /SEND • TRANSMITTER
+            ROUTE // /SEND | TRANSMITTER
           </span>
           <h1 ref={headingRef} tabIndex={-1} className="page-title">
             Pemancar QR Optik
           </h1>
           <p className="card-meta" style={{ maxWidth: '62ch' }}>
             Pilih file atau ketik catatan, pilih preset kecepatan optik (Mono / Multi-QR Grid /
-            RGB Color 3×), lalu tekan <strong>Start</strong>.
+            RGB Color 3x), lalu tekan <strong>Start</strong>.
           </p>
         </div>
         {broadcast && (
@@ -313,20 +313,20 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
         )}
       </div>
 
-      <div className="bento-grid">
+      <div className="bento-grid sender-bento" data-has-broadcast={broadcast ? 'true' : 'false'}>
         {/* Left Hero Column: Optical QR Stage */}
-        <section className="pixel-card stack" aria-label="Proyeksi QR Code">
-          <div className="card-header" style={{ marginBlockEnd: 4 }}>
+        <section className="pixel-card stack sender-stage-card" aria-label="Proyeksi QR Code">
+          <div className="card-header" style={{ marginBlockEnd: 2 }}>
             <div>
               <h2 className="card-title">Layar Proyeksi Optik</h2>
               <p className="card-meta">
                 {packetsPerFrame > 1
-                  ? `Mode paralel ${packetsPerFrame}× paket per frame (${gridLayout.toUpperCase()} ${colorMode.toUpperCase()})`
-                  : 'Mode standar 1× QR monokrom'}
+                  ? `Mode paralel ${packetsPerFrame}x paket per frame (${gridLayout.toUpperCase()} ${colorMode.toUpperCase()})`
+                  : 'Mode standar 1x QR monokrom'}
               </p>
             </div>
             <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--fg-secondary)' }}>
-              {mode === 'lt' ? 'LT-FOUNTAIN' : 'CYCLIC'} • ~{estThroughputKbs} KB/s
+              {mode === 'lt' ? 'LT-FOUNTAIN' : 'CYCLIC'} | ~{estThroughputKbs} KB/s
             </span>
           </div>
 
@@ -350,7 +350,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
               </div>
             ) : (
               <div className="qr-canvas-frame">
-                <div style={{ textAlign: 'center', padding: 24, color: '#52525b' }}>
+                <div style={{ textAlign: 'center', padding: 20, color: '#52525b' }}>
                   <p style={{ fontWeight: 600, color: '#18181b', marginBottom: 4 }}>
                     {preparing ? 'Menyiapkan blok data...' : 'Belum ada file dipilih'}
                   </p>
@@ -365,23 +365,23 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
               <div className="qr-stage-caption mono">
                 <span>
                   {!hasStarted
-                    ? `SIAP • FRAME #1 (${packetsPerFrame} PKT/FRAME)`
-                    : `FRAME #${frameStats.frameNumber} • ${
+                    ? `SIAP | FRAME #1 (${packetsPerFrame} PKT/FRAME)`
+                    : `FRAME #${frameStats.frameNumber} | ${
                         frameStats.hasManifest ? 'MANIFEST+' : ''
                       }${frameStats.packetCount} PKT (SEQ #${Math.max(0, frameStats.firstSeq)})`}
                 </span>
                 <span>
-                  {isPlaying ? `${frameStats.actualFps || fps} FPS` : `Target ${fps} FPS`} •{' '}
+                  {isPlaying ? `${frameStats.actualFps || fps} FPS` : `Target ${fps} FPS`} |{' '}
                   {broadcast.manifest.k} BLOK
                 </span>
               </div>
             )}
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div className="action-bar">
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-primary action-main"
               disabled={!broadcast}
               onClick={handleTogglePlay}
             >
@@ -400,7 +400,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
               onClick={restartSweep}
             >
               <RotateCcw size={16} aria-hidden="true" />
-              Ulang dari Awal
+              Ulang
             </button>
 
             {typeof document !== 'undefined' && document.fullscreenEnabled && (
@@ -415,7 +415,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
                 ) : (
                   <Maximize2 size={16} aria-hidden="true" />
                 )}
-                {isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh'}
+                {isFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh'}
               </button>
             )}
           </div>
@@ -446,7 +446,10 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
         </section>
 
         {/* Right Control Column: Source & Optical Speed Tuning */}
-        <aside className="pixel-card stack" aria-label="Sumber data dan pengaturan">
+        <aside
+          className="pixel-card stack sender-controls-card"
+          aria-label="Sumber data dan pengaturan"
+        >
           <div className="card-header" style={{ marginBlockEnd: 0 }}>
             <h3 className="card-title">Sumber &amp; Kecepatan</h3>
             <div className="source-tabs" role="group" aria-label="Jenis input">
@@ -507,7 +510,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--fg-secondary)' }}>
                 {loadedInput
-                  ? `${formatBytes(loadedInput.bytes.length)} • Klik untuk ganti`
+                  ? `${formatBytes(loadedInput.bytes.length)} | Klik untuk ganti`
                   : 'Pakai preset Quad/RGB untuk kirim file lebih cepat'}
               </span>
             </label>
@@ -545,7 +548,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
               <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
               <span>
                 File berukuran <strong>{formatBytes(activeInput.bytes.length)}</strong>. Gunakan
-                preset <strong>4× Quad</strong> atau <strong>12× Turbo</strong> untuk mempercepat
+                preset <strong>4x Quad</strong> atau <strong>12x Turbo</strong> untuk mempercepat
                 transfer.
               </span>
             </div>
@@ -594,9 +597,9 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
                 value={gridLayout}
                 onChange={(e) => setGridLayout(e.target.value as GridLayout)}
               >
-                <option value="1x1">1×1 (Tunggal)</option>
-                <option value="2x1">2×1 (2 QR, 2×)</option>
-                <option value="2x2">2×2 (4 QR, 4×)</option>
+                <option value="1x1">1x1 (Tunggal)</option>
+                <option value="2x1">2x1 (2 QR, 2x)</option>
+                <option value="2x2">2x2 (4 QR, 4x)</option>
               </select>
             </div>
 
@@ -610,8 +613,8 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
                 value={colorMode}
                 onChange={(e) => setColorMode(e.target.value as ColorMode)}
               >
-                <option value="mono">Monokrom (1×)</option>
-                <option value="rgb">RGB Color (3×)</option>
+                <option value="mono">Monokrom (1x)</option>
+                <option value="rgb">RGB Color (3x)</option>
               </select>
             </div>
           </div>

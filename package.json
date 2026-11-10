@@ -2,8 +2,13 @@
   "name": "beamqr",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "description": "Zero-internet optical file transfer via animated QR codes and Fountain (LT) codes.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/musthofa-kamaluddin/BeamQR.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

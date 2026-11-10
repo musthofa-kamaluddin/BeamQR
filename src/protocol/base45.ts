@@ -1,4 +1,4 @@
-// RFC 9285 Base45 encoding/decoding — optimal for QR Alphanumeric mode (5.5 bits/char).
+// RFC 9285 Base45 encoding/decoding - optimal for QR Alphanumeric mode (5.5 bits/char).
 
 export const BASE45_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
 

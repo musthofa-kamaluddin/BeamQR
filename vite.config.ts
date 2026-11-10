@@ -12,7 +12,7 @@ export default defineConfig(({ command }) => ({
       injectRegister: 'auto',
       includeAssets: ['icon.svg', 'maskable-icon.svg'],
       manifest: {
-        name: 'BeamQR — Optical Pixel File Transfer',
+        name: 'BeamQR - Optical Pixel File Transfer',
         short_name: 'BeamQR',
         description:
           'Transfer files offline with zero network using animated Fountain-coded pixel QR streams.',

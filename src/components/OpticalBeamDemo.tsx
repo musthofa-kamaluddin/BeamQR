@@ -132,8 +132,8 @@ export function OpticalBeamDemo({ themeKey }: OpticalBeamDemoProps) {
       lastTime = now;
 
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const w = canvas.clientWidth || 460;
-      const h = 230;
+      const w = canvas.clientWidth || 320;
+      const h = canvas.clientHeight || 220;
       if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
@@ -186,11 +186,12 @@ export function OpticalBeamDemo({ themeKey }: OpticalBeamDemoProps) {
         }
       }
 
-      const txSize = Math.min(96, Math.floor(w * 0.22));
+      const txSize = Math.min(96, Math.max(72, Math.floor(w * 0.23)));
       const rxSize = txSize;
-      const txX = 18;
-      const rxX = w - rxSize - 18;
-      const cy = Math.floor((h - txSize) / 2);
+      const sidePad = w < 360 ? 12 : 18;
+      const txX = sidePad;
+      const rxX = w - rxSize - sidePad;
+      const cy = Math.floor((h - txSize) / 2) + 4;
 
       const beamStart = txX + txSize + 14;
       const beamEnd = rxX - 14;
@@ -296,10 +297,14 @@ export function OpticalBeamDemo({ themeKey }: OpticalBeamDemoProps) {
       }
 
       // Labels
-      ctx.font = '600 10px "JetBrains Mono", monospace';
+      ctx.font = w < 360 ? '600 9px "JetBrains Mono", monospace' : '600 10px "JetBrains Mono", monospace';
       ctx.fillStyle = palette.ink;
-      ctx.fillText('TX // QR BEAM', txX, cy - 10);
-      ctx.fillText(verified ? 'RX // SHA-256 OK' : 'RX // PEELING', rxX - 4, cy - 10);
+      ctx.fillText(w < 360 ? 'TX // QR' : 'TX // QR BEAM', txX, cy - 10);
+      ctx.fillText(
+        verified ? (w < 360 ? 'RX // OK' : 'RX // SHA-256 OK') : w < 360 ? 'RX // PEEL' : 'RX // PEELING',
+        rxX - 4,
+        cy - 10,
+      );
 
       if (!paused) {
         rafId = requestAnimationFrame(stepAndDraw);

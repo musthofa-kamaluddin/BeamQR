@@ -11,9 +11,9 @@ export function normalizeRoute(pathname: string): AppRoute {
 }
 
 const ROUTE_TITLES: Record<AppRoute, string> = {
-  '/': 'BeamQR — Optical Pixel File Transfer',
-  '/send': 'Kirim File — BeamQR',
-  '/receive': 'Terima File — BeamQR',
+  '/': 'BeamQR - Optical Pixel File Transfer',
+  '/send': 'Kirim File - BeamQR',
+  '/receive': 'Terima File - BeamQR',
 };
 
 export function useRouter(headingRef: React.RefObject<HTMLHeadingElement | null>) {
