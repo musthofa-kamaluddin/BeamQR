@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import {
-  decodeFrameQrs,
-  type JsQrDecoderFn,
-  type OpticalColorScanMode,
-} from '../protocol/qrOptical';
+import { decodeSingleQr, type JsQrDecoderFn } from '../protocol/qrOptical';
 import type { DecodeWorkerRequest, DecodeWorkerResponse } from '../workers/qrDecoder.worker';
 
 export interface CameraDeviceInfo {
@@ -16,7 +12,7 @@ export type DecoderPreference = 'auto' | 'jsqr' | 'native';
 export type ActiveDecoderBackend = 'native' | 'jsqr-worker' | 'jsqr-main';
 
 interface UseCameraScannerOptions {
-  onQrTexts: (texts: string[]) => void;
+  onQrText: (text: string) => void;
 }
 
 interface BarcodeDetectorLike {
@@ -47,7 +43,7 @@ async function isNativeBarcodeSupported(): Promise<boolean> {
   }
 }
 
-export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
+export function useCameraScanner({ onQrText }: UseCameraScannerOptions) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -56,26 +52,17 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
   const detectorRef = useRef<BarcodeDetectorLike | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const busyRef = useRef(false);
-  const recentTextsRef = useRef<Set<string>>(new Set());
+  const lastRawRef = useRef('');
   const frameCounterRef = useRef(0);
-  const onQrTextsRef = useRef(onQrTexts);
-  onQrTextsRef.current = onQrTexts;
+  const onQrTextRef = useRef(onQrText);
+  onQrTextRef.current = onQrText;
 
   const [isScanning, setIsScanning] = useState(false);
   const [preference, setPreference] = useState<DecoderPreference>('auto');
   const preferenceRef = useRef<DecoderPreference>('auto');
   preferenceRef.current = preference;
 
-  const [colorScanMode, setColorScanMode] = useState<OpticalColorScanMode>('auto');
-  const colorScanModeRef = useRef<OpticalColorScanMode>('auto');
-  colorScanModeRef.current = colorScanMode;
-
-  const [multiScan, setMultiScan] = useState(true);
-  const multiScanRef = useRef(true);
-  multiScanRef.current = multiScan;
-
   const [backend, setBackend] = useState<ActiveDecoderBackend>('jsqr-worker');
-  const [detectedRgb, setDetectedRgb] = useState(false);
   const [nativeAvailable, setNativeAvailable] = useState(false);
   const [devices, setDevices] = useState<CameraDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -106,7 +93,6 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
     setTorchSupported(false);
     setScanFps(0);
     setResolution(null);
-    setDetectedRgb(false);
   }, []);
 
   const refreshDevices = useCallback(async () => {
@@ -127,9 +113,7 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
       width: number,
       height: number,
       attemptBoth: boolean,
-      multi: boolean,
-      colorMode: OpticalColorScanMode,
-    ): Promise<{ texts: string[]; usedRgb: boolean; usedMain: boolean }> => {
+    ): Promise<{ text: string | null; usedMain: boolean }> => {
       const imageData = ctx.getImageData(0, 0, width, height);
 
       if (!workerBrokenRef.current) {
@@ -151,84 +135,76 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
         const w = workerRef.current;
         if (w && !workerBrokenRef.current) {
           const reqId = ++frameCounterRef.current;
-          const workerResult = await new Promise<{
-            texts: string[];
-            usedRgb: boolean;
-            failed: boolean;
-          }>((resolve) => {
-            let settled = false;
-            const cleanup = () => {
-              w.removeEventListener('message', onMsg);
-              w.removeEventListener('error', onErr);
-              window.clearTimeout(timer);
-            };
-            const onMsg = (ev: MessageEvent<DecodeWorkerResponse>) => {
-              if (ev.data.id === reqId && !settled) {
-                settled = true;
-                cleanup();
-                resolve({ texts: ev.data.texts, usedRgb: ev.data.usedRgb, failed: false });
-              }
-            };
-            const onErr = () => {
-              if (!settled) {
-                settled = true;
-                workerBrokenRef.current = true;
-                cleanup();
-                resolve({ texts: [], usedRgb: false, failed: true });
-              }
-            };
-            const timer = window.setTimeout(() => {
-              if (!settled) {
-                settled = true;
-                workerBrokenRef.current = true;
-                cleanup();
-                resolve({ texts: [], usedRgb: false, failed: true });
-              }
-            }, 1500);
-
-            w.addEventListener('message', onMsg);
-            w.addEventListener('error', onErr);
-
-            try {
-              const msg: DecodeWorkerRequest = {
-                id: reqId,
-                width,
-                height,
-                buffer: imageData.data.buffer,
-                attemptBoth,
-                multiScan: multi,
-                colorMode,
+          const workerResult = await new Promise<{ text: string | null; failed: boolean }>(
+            (resolve) => {
+              let settled = false;
+              const cleanup = () => {
+                w.removeEventListener('message', onMsg);
+                w.removeEventListener('error', onErr);
+                window.clearTimeout(timer);
               };
-              w.postMessage(msg, [imageData.data.buffer]);
-            } catch {
-              settled = true;
-              workerBrokenRef.current = true;
-              cleanup();
-              resolve({ texts: [], usedRgb: false, failed: true });
-            }
-          });
+              const onMsg = (ev: MessageEvent<DecodeWorkerResponse>) => {
+                if (ev.data.id === reqId && !settled) {
+                  settled = true;
+                  cleanup();
+                  resolve({ text: ev.data.text, failed: false });
+                }
+              };
+              const onErr = () => {
+                if (!settled) {
+                  settled = true;
+                  workerBrokenRef.current = true;
+                  cleanup();
+                  resolve({ text: null, failed: true });
+                }
+              };
+              const timer = window.setTimeout(() => {
+                if (!settled) {
+                  settled = true;
+                  workerBrokenRef.current = true;
+                  cleanup();
+                  resolve({ text: null, failed: true });
+                }
+              }, 1200);
+
+              w.addEventListener('message', onMsg);
+              w.addEventListener('error', onErr);
+
+              try {
+                const msg: DecodeWorkerRequest = {
+                  id: reqId,
+                  width,
+                  height,
+                  buffer: imageData.data.buffer,
+                  attemptBoth,
+                };
+                w.postMessage(msg, [imageData.data.buffer]);
+              } catch {
+                settled = true;
+                workerBrokenRef.current = true;
+                cleanup();
+                resolve({ text: null, failed: true });
+              }
+            },
+          );
 
           if (!workerResult.failed) {
-            return { texts: workerResult.texts, usedRgb: workerResult.usedRgb, usedMain: false };
+            return { text: workerResult.text, usedMain: false };
           }
           const fresh = ctx.getImageData(0, 0, width, height);
-          if (!mainJsQr) return { texts: [], usedRgb: false, usedMain: true };
-          const res = decodeFrameQrs(mainJsQr, fresh.data, width, height, {
-            multiScan: multi,
-            colorMode,
-            attemptBoth,
-          });
-          return { texts: res.texts, usedRgb: res.usedRgb, usedMain: true };
+          if (!mainJsQr) return { text: null, usedMain: true };
+          return {
+            text: decodeSingleQr(mainJsQr, fresh.data, width, height, attemptBoth),
+            usedMain: true,
+          };
         }
       }
 
-      if (!mainJsQr) return { texts: [], usedRgb: false, usedMain: true };
-      const res = decodeFrameQrs(mainJsQr, imageData.data, width, height, {
-        multiScan: multi,
-        colorMode,
-        attemptBoth,
-      });
-      return { texts: res.texts, usedRgb: res.usedRgb, usedMain: true };
+      if (!mainJsQr) return { text: null, usedMain: true };
+      return {
+        text: decodeSingleQr(mainJsQr, imageData.data, width, height, attemptBoth),
+        usedMain: true,
+      };
     },
     [],
   );
@@ -315,7 +291,6 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
         let lastResW = 0;
         let lastResH = 0;
         let activeBackend: ActiveDecoderBackend | null = null;
-        let lastRgbState = false;
 
         const updateBackend = (next: ActiveDecoderBackend) => {
           if (activeBackend !== next) {
@@ -324,24 +299,12 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
           }
         };
 
-        const processQrBatch = (texts: string[]) => {
-          if (texts.length === 0) return;
-          setRawQrHits((c) => c + texts.length);
-
-          const fresh: string[] = [];
-          const recent = recentTextsRef.current;
-          if (recent.size > 96) {
-            recent.clear();
-          }
-          for (const t of texts) {
-            if (!t || recent.has(t)) continue;
-            recent.add(t);
-            fresh.push(t);
-          }
-
-          if (fresh.length > 0) {
-            onQrTextsRef.current(fresh);
-          }
+        const processQr = (text: string | null) => {
+          if (!text) return;
+          setRawQrHits((c) => c + 1);
+          if (text === lastRawRef.current) return;
+          lastRawRef.current = text;
+          onQrTextRef.current(text);
         };
 
         const loop = async () => {
@@ -360,8 +323,7 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
                   setResolution({ width: vw, height: vh });
                 }
 
-                // Higher ceiling when multi-QR grid scanning is active so 2x2 quadrants keep sharp modules
-                const maxSide = multiScanRef.current ? 960 : 800;
+                const maxSide = 760;
                 const scale = Math.min(1, maxSide / Math.max(vw, vh));
                 const cw = Math.max(1, Math.round(vw * scale));
                 const ch = Math.max(1, Math.round(vh * scale));
@@ -378,18 +340,12 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
                   loopTick++;
 
                   const pref = preferenceRef.current;
-                  const cMode = colorScanModeRef.current;
-                  const mScan = multiScanRef.current;
-
-                  // Native BarcodeDetector only understands luminance (not RGB-multiplexed channels)
                   const canTryNative =
                     hasNative &&
                     !nativeFailed &&
-                    cMode !== 'rgb' &&
-                    !lastRgbState &&
                     (pref === 'native' || pref === 'auto');
 
-                  let decodedTexts: string[] = [];
+                  let decoded: string | null = null;
 
                   const shouldRunNative =
                     canTryNative &&
@@ -399,10 +355,8 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
                     updateBackend('native');
                     try {
                       const barcodes = await detectorRef.current.detect(canvas);
-                      decodedTexts = barcodes
-                        .map((b) => b.rawValue)
-                        .filter((val): val is string => Boolean(val));
-                      if (decodedTexts.length > 0) {
+                      decoded = barcodes[0]?.rawValue ?? null;
+                      if (decoded) {
                         nativeMissStreak = 0;
                       } else {
                         nativeMissStreak++;
@@ -413,32 +367,20 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
                   }
 
                   if (
-                    decodedTexts.length === 0 &&
-                    (cMode === 'rgb' ||
-                      pref === 'jsqr' ||
+                    !decoded &&
+                    (pref === 'jsqr' ||
                       (pref === 'auto' &&
                         (!canTryNative || nativeMissStreak >= 2 || loopTick % 3 === 0)))
                   ) {
-                    const res = await decodeWithWorkerOrMain(
-                      ctx,
-                      cw,
-                      ch,
-                      loopTick % 2 === 0,
-                      mScan,
-                      cMode,
-                    );
+                    const res = await decodeWithWorkerOrMain(ctx, cw, ch, loopTick % 2 === 0);
                     updateBackend(res.usedMain ? 'jsqr-main' : 'jsqr-worker');
-                    decodedTexts = res.texts;
-                    if (res.usedRgb !== lastRgbState) {
-                      lastRgbState = res.usedRgb;
-                      setDetectedRgb(res.usedRgb);
-                    }
-                    if (decodedTexts.length > 0 && pref === 'auto') {
+                    decoded = res.text;
+                    if (decoded && pref === 'auto') {
                       nativeMissStreak = 10;
                     }
                   }
 
-                  processQrBatch(decodedTexts);
+                  processQr(decoded);
 
                   fpsFrames++;
                   const now = performance.now();
@@ -495,9 +437,8 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
   }, [torchEnabled]);
 
   const resetDedupe = useCallback(() => {
-    recentTextsRef.current.clear();
+    lastRawRef.current = '';
     setRawQrHits(0);
-    setDetectedRgb(false);
   }, []);
 
   useEffect(() => {
@@ -514,11 +455,6 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
     backend,
     preference,
     setPreference,
-    colorScanMode,
-    setColorScanMode,
-    multiScan,
-    setMultiScan,
-    detectedRgb,
     nativeAvailable,
     devices,
     selectedDeviceId,

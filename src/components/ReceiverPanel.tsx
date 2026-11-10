@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { useCameraScanner } from '../hooks/useCameraScanner';
 import { useWakeLock } from '../hooks/useWakeLock';
-import type { OpticalColorScanMode } from '../protocol/qrOptical';
 import { ReceiveSession, type ReceiveSnapshot } from '../protocol/transferSession';
 import { formatBytes, isImagePreviewable, isTextPreviewable } from '../utils/format';
 import { BlockMatrix } from './BlockMatrix';
@@ -29,12 +28,10 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
 
   const cameraSelectId = useId();
   const decoderSelectId = useId();
-  const colorScanId = useId();
-  const multiScanId = useId();
   const progressId = useId();
 
-  const handleQrTexts = useCallback((texts: string[]) => {
-    void sessionRef.current.ingestBatch(texts).then(({ changed, snapshot: next }) => {
+  const handleQrText = useCallback((text: string) => {
+    void sessionRef.current.ingestQrText(text).then(({ changed, snapshot: next }) => {
       if (!changed) return;
       if (next.status === 'receiving' && transferStartRef.current === null) {
         transferStartRef.current = performance.now();
@@ -51,7 +48,7 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
     });
   }, []);
 
-  const scanner = useCameraScanner({ onQrTexts: handleQrTexts });
+  const scanner = useCameraScanner({ onQrText: handleQrText });
   const { stopCamera, isScanning } = scanner;
   useWakeLock(isActive && isScanning);
 
@@ -124,22 +121,15 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
     <div className="page-enter stack" style={{ gap: 16 }}>
       <div className="page-banner">
         <div className="stack" style={{ gap: 6 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-            <span className="pixel-badge" data-tone="sky">
-              ROUTE // /RECEIVE | OPTICAL SCANNER
-            </span>
-            {scanner.detectedRgb && (
-              <span className="pixel-badge" data-tone="amber">
-                RGB 3-CHANNEL TERDETEKSI
-              </span>
-            )}
-          </div>
+          <span className="pixel-badge" data-tone="sky">
+            ROUTE // /RECEIVE | OPTICAL SCANNER
+          </span>
           <h1 ref={headingRef} tabIndex={-1} className="page-title">
             Pemindai Kamera QR
           </h1>
           <p className="card-meta" style={{ maxWidth: '62ch' }}>
-            Mendukung pemindaian tunggal, <strong>Multi-QR Grid (2x1 / 2x2)</strong>, dan{' '}
-            <strong>RGB Color (3x)</strong> secara otomatis dalam satu frame kamera.
+            Arahkan kamera ke layar pengirim (/send) untuk memindai aliran <strong>1x1 QR hitam-putih</strong>{' '}
+            dengan header v2 ringkas (8B) dan dekompresi otomatis di perangkat.
           </p>
         </div>
         <span className="status-pill" data-tone={statusMeta.tone}>
@@ -155,7 +145,7 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
             <div>
               <h2 className="card-title">Jendela Kamera</h2>
               <p className="card-meta">
-                Posisikan seluruh kotak (atau grid 2x2) di dalam bingkai kamera.
+                Posisikan seluruh kotak QR di dalam bingkai kamera.
               </p>
             </div>
             <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--fg-secondary)' }}>
@@ -282,61 +272,21 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
             </span>
           </div>
 
-          <div className="stats-grid">
-            <div className="control-field">
-              <label htmlFor={decoderSelectId} className="control-label">
-                Decoder QR
-              </label>
-              <select
-                id={decoderSelectId}
-                className="select-input"
-                value={scanner.preference}
-                onChange={(e) => scanner.setPreference(e.target.value as typeof scanner.preference)}
-              >
-                <option value="auto">Auto (Hybrid)</option>
-                <option value="jsqr">jsQR Worker</option>
-                {scanner.nativeAvailable && <option value="native">Native API</option>}
-              </select>
-            </div>
-
-            <div className="control-field">
-              <label htmlFor={colorScanId} className="control-label">
-                Deteksi Warna
-              </label>
-              <select
-                id={colorScanId}
-                className="select-input"
-                value={scanner.colorScanMode}
-                onChange={(e) =>
-                  scanner.setColorScanMode(e.target.value as OpticalColorScanMode)
-                }
-              >
-                <option value="auto">Auto (Mono + RGB)</option>
-                <option value="rgb">Paksa Split RGB (3x)</option>
-                <option value="mono">Mono Saja</option>
-              </select>
-            </div>
+          <div className="control-field">
+            <label htmlFor={decoderSelectId} className="control-label">
+              Decoder QR
+            </label>
+            <select
+              id={decoderSelectId}
+              className="select-input"
+              value={scanner.preference}
+              onChange={(e) => scanner.setPreference(e.target.value as typeof scanner.preference)}
+            >
+              <option value="auto">Auto (Hybrid)</option>
+              <option value="jsqr">jsQR Worker</option>
+              {scanner.nativeAvailable && <option value="native">Native API</option>}
+            </select>
           </div>
-
-          <label
-            htmlFor={multiScanId}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-            }}
-          >
-            <input
-              id={multiScanId}
-              type="checkbox"
-              checked={scanner.multiScan}
-              onChange={(e) => scanner.setMultiScan(e.target.checked)}
-              style={{ width: 18, height: 18 }}
-            />
-            Scan Multi-QR per frame (Grid 2x1 / 2x2)
-          </label>
 
           {snapshot.manifest ? (
             <div className="stack" style={{ gap: 10 }}>
@@ -350,7 +300,9 @@ export function ReceiverPanel({ isActive, themeKey, headingRef }: ReceiverPanelP
               >
                 <strong style={{ wordBreak: 'break-word' }}>{snapshot.manifest.fileName}</strong>
                 <span className="mono" style={{ fontSize: '0.8125rem', color: 'var(--fg-secondary)' }}>
-                  {formatBytes(snapshot.manifest.origSize)}
+                  {snapshot.manifest.compressed
+                    ? `${formatBytes(snapshot.manifest.compSize)} / ${formatBytes(snapshot.manifest.origSize)}`
+                    : formatBytes(snapshot.manifest.origSize)}
                 </span>
               </div>
 

@@ -55,8 +55,9 @@ export function ProtocolInfoModal({ open, onClose }: ProtocolInfoModalProps) {
 
         <ol className="dialog-list">
           <li>
-            <strong>Kompresi &amp; Hash:</strong> File dikompresi (<code>Deflate-Raw</code>) lalu
-            dihitung hash <code>SHA-256</code> untuk verifikasi bit-per-bit di sisi penerima.
+            <strong>Kompresi Lossless &amp; Hash:</strong> File dikompresi (<code>Deflate-Raw Level-9</code>)
+            secara lossless lalu dihitung hash <code>SHA-256</code>. Di sisi penerima, proses
+            kompresi dibalik 100% bit-per-bit menjadi file asli sebelum verifikasi hash.
           </li>
           <li>
             <strong>Fountain (LT Code):</strong> File dipecah menjadi <em>K</em> blok. Pengirim
@@ -64,15 +65,14 @@ export function ProtocolInfoModal({ open, onClose }: ProtocolInfoModalProps) {
             Penerima cukup menangkap blok mana saja hingga sistem persamaan linear GF(2) terpecahkan.
           </li>
           <li>
-            <strong>Multi-QR Grid &amp; RGB 3-Channel:</strong> Untuk kecepatan tinggi tanpa
-            internet, aktifkan grid <code>2x1 / 2x2</code> (hingga 4 QR per frame) atau mode warna{' '}
-            <code>RGB</code> (3 QR berbeda di channel R, G, dan B secara bersamaan, hingga 12 paket
-            per frame pada mode 2x2 RGB!).
+            <strong>Header V2 Ringkas &amp; Base45 1x1 BnW:</strong> Overhead header paket data dipangkas
+            menjadi hanya 8 byte per QR (tag 1B + sessionId 2B + seq 3B + CRC-16 2B) dan di-encode ke
+            alfabet Base45 Alphanumeric agar QR tetap renggang, tajam, dan mudah dipindai kamera HP.
           </li>
           <li>
             <strong>Tips Scan Optimal:</strong> Atur kecerahan layar pengirim ~75%, hindari pantulan
-            lampu langsung, jarak kamera 20-35 cm. Mulai dari <strong>1x Standar</strong> bila
-            cahaya redup, lalu naikkan ke <strong>Quad / RGB / Turbo</strong> di layar terang.
+            lampu langsung, jarak kamera 20-35 cm. Gunakan preset <strong>Seimbang</strong> atau
+            mulai dari <strong>Aman</strong> (ECC M, 6 FPS) jika pencahayaan ruangan redup.
           </li>
         </ol>
 

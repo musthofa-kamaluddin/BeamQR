@@ -1337,49 +1337,9 @@ progress.telemetry-progress::-moz-progress-bar {
   display: block;
 }
 
-.qr-multi-grid {
-  width: 100%;
-  display: grid;
-  gap: 8px;
-  justify-items: center;
-  align-items: center;
-  background: #ffffff;
-}
-
-@media (min-width: 640px) {
-  .qr-multi-grid {
-    gap: 14px;
-  }
-}
-
-.qr-multi-grid[data-layout="1x1"] {
-  grid-template-columns: 1fr;
-  max-width: 420px;
-}
-
-.qr-multi-grid[data-layout="2x1"],
-.qr-multi-grid[data-layout="2x2"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  max-width: 560px;
-}
-
-.qr-cell-box {
-  width: 100%;
-  aspect-ratio: 1;
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
-}
-
-.qr-cell-box canvas {
-  width: 100% !important;
-  height: 100% !important;
-  image-rendering: pixelated;
-  display: block;
-}
-
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
 }
 

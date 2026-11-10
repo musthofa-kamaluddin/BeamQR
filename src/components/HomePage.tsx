@@ -58,13 +58,13 @@ export function HomePage({ headingRef, themeKey, onLinkClick }: HomePageProps) {
           </div>
 
           <div className="spec-strip mono">
-            <span>2x2 QUAD GRID (4x)</span>
+            <span>1x1 BNW QR</span>
             <span aria-hidden="true">/</span>
-            <span>RGB COLOR QR (3x)</span>
+            <span>HEADER V2 (8B)</span>
+            <span aria-hidden="true">/</span>
+            <span>DEFLATE LV-9 + BASE45</span>
             <span aria-hidden="true">/</span>
             <span>LT FOUNTAIN + GF(2)</span>
-            <span aria-hidden="true">/</span>
-            <span>OFFLINE PWA</span>
           </div>
         </div>
 
@@ -102,8 +102,8 @@ export function HomePage({ headingRef, themeKey, onLinkClick }: HomePageProps) {
             </div>
             <h3 className="card-title">Base45 Pixel Beam</h3>
             <p className="card-meta">
-              Setiap frame dipacking ke alfabet Base45 Alphanumeric (~25% lebih ringkas di QR
-              dibanding Base64) dan dilindungi CRC-32 sebelum diproyeksikan ke layar.
+              Setiap paket dikemas dengan header v2 ringkas 8 byte + Base45 Alphanumeric (~25% lebih
+              padat dibanding Base64) serta CRC-16/CRC-32 sebelum diproyeksikan ke layar 1x1 BnW.
             </p>
           </article>
 

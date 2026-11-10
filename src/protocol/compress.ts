@@ -1,11 +1,14 @@
-// Native Web Streams deflate-raw / deflate compression with clean fallback when incompressible.
+import { deflateSync, inflateSync } from 'fflate';
+
+// Level-9 lossless deflate-raw compression (100% bit-exact reversible on receiver).
 
 export type CompressionKind = 'none' | 'deflate' | 'deflate-raw';
 
-async function runStream(
+async function decompressNative(
   input: Uint8Array,
-  stream: CompressionStream | DecompressionStream,
+  format: 'deflate' | 'deflate-raw',
 ): Promise<Uint8Array> {
+  const stream = new DecompressionStream(format);
   const writer = stream.writable.getWriter();
   const writePromise = writer.write(new Uint8Array(input)).then(() => writer.close());
 
@@ -36,21 +39,17 @@ async function runStream(
 export async function compressPayload(
   input: Uint8Array,
 ): Promise<{ data: Uint8Array; compressed: boolean; format: CompressionKind }> {
-  if (input.length === 0 || !('CompressionStream' in globalThis)) {
+  if (input.length === 0) {
     return { data: input, compressed: false, format: 'none' };
   }
 
-  // Prefer deflate-raw (saves 6 bytes of zlib header/footer)
-  for (const fmt of ['deflate-raw', 'deflate'] as const) {
-    try {
-      const compressed = await runStream(input, new CompressionStream(fmt));
-      if (compressed.length < input.length) {
-        return { data: compressed, compressed: true, format: fmt };
-      }
-      return { data: input, compressed: false, format: 'none' };
-    } catch {
-      // Try next supported stream format
+  try {
+    const compressed = deflateSync(input, { level: 9, mem: 8 });
+    if (compressed.length < input.length) {
+      return { data: compressed, compressed: true, format: 'deflate-raw' };
     }
+  } catch {
+    // Fall back to raw bytes when incompressible
   }
 
   return { data: input, compressed: false, format: 'none' };
@@ -64,9 +63,15 @@ export async function decompressPayload(
   if (!compressed || format === 'none') {
     return input;
   }
-  if (!('DecompressionStream' in globalThis)) {
-    throw new Error('Browser tidak mendukung DecompressionStream untuk membaca file terkompresi.');
-  }
+
   const fmt = format ?? 'deflate';
-  return runStream(input, new DecompressionStream(fmt));
+  if (fmt === 'deflate-raw') {
+    return inflateSync(input);
+  }
+
+  if ('DecompressionStream' in globalThis) {
+    return decompressNative(input, fmt);
+  }
+
+  throw new Error('Browser tidak mendukung dekompresi untuk format paket ini.');
 }

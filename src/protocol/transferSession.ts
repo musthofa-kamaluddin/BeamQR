@@ -54,7 +54,7 @@ export async function prepareBroadcast(params: {
     ? await compressPayload(bytes)
     : { data: bytes, compressed: false, format: 'none' as const };
 
-  const sessionId = cryptoRandomUint32();
+  const sessionId = cryptoRandomUint16();
   const k = Math.max(1, Math.ceil(payload.length / blockSize));
 
   const manifest: TransferManifest = {
@@ -145,13 +145,13 @@ export async function prepareBroadcast(params: {
   };
 }
 
-function cryptoRandomUint32(): number {
+function cryptoRandomUint16(): number {
   if (globalThis.crypto?.getRandomValues) {
-    const arr = new Uint32Array(1);
+    const arr = new Uint16Array(1);
     globalThis.crypto.getRandomValues(arr);
-    return arr[0] >>> 0;
+    return (arr[0] & 0xffff) || 1;
   }
-  return (Math.random() * 0x100000000) >>> 0;
+  return ((Math.random() * 0xffff) | 0) || 1;
 }
 
 export type ReceiveStatus =
@@ -223,7 +223,7 @@ export class ReceiveSession {
       return { changed: false, snapshot: this.getSnapshot() };
     }
 
-    const packet = decodePacket(rawText.trim());
+    const packet = decodePacket(rawText.replace(/[\r\n\t]/g, ''));
     if (!packet) {
       this.invalidScans++;
       return { changed: true, snapshot: this.getSnapshot() };

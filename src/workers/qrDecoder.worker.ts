@@ -1,9 +1,5 @@
 import jsQR from 'jsqr';
-import {
-  decodeFrameQrs,
-  type JsQrDecoderFn,
-  type OpticalColorScanMode,
-} from '../protocol/qrOptical';
+import { decodeSingleQr, type JsQrDecoderFn } from '../protocol/qrOptical';
 
 export interface DecodeWorkerRequest {
   id: number;
@@ -11,14 +7,11 @@ export interface DecodeWorkerRequest {
   height: number;
   buffer: ArrayBuffer;
   attemptBoth: boolean;
-  multiScan: boolean;
-  colorMode: OpticalColorScanMode;
 }
 
 export interface DecodeWorkerResponse {
   id: number;
-  texts: string[];
-  usedRgb: boolean;
+  text: string | null;
 }
 
 const decodeQr: JsQrDecoderFn | undefined =
@@ -28,23 +21,15 @@ const decodeQr: JsQrDecoderFn | undefined =
       (globalThis as unknown as { jsQR?: JsQrDecoderFn }).jsQR;
 
 self.onmessage = (event: MessageEvent<DecodeWorkerRequest>) => {
-  const { id, width, height, buffer, attemptBoth, multiScan, colorMode } = event.data;
+  const { id, width, height, buffer, attemptBoth } = event.data;
   if (!decodeQr) {
-    self.postMessage({ id, texts: [], usedRgb: false } satisfies DecodeWorkerResponse);
+    self.postMessage({ id, text: null } satisfies DecodeWorkerResponse);
     return;
   }
 
   const clamped = new Uint8ClampedArray(buffer);
-  const { texts, usedRgb } = decodeFrameQrs(decodeQr, clamped, width, height, {
-    multiScan,
-    colorMode,
-    attemptBoth,
-  });
+  const text = decodeSingleQr(decodeQr, clamped, width, height, attemptBoth);
 
-  const response: DecodeWorkerResponse = {
-    id,
-    texts,
-    usedRgb,
-  };
+  const response: DecodeWorkerResponse = { id, text };
   self.postMessage(response);
 };

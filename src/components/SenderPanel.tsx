@@ -12,12 +12,12 @@ import {
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import type { TransferMode } from '../protocol/packet';
-import { renderQrToCanvas, type ColorMode, type GridLayout } from '../protocol/qrOptical';
+import { renderMonoQrToCanvas } from '../protocol/qrOptical';
 import { prepareBroadcast, type PreparedBroadcast } from '../protocol/transferSession';
 import { formatBytes, formatDuration } from '../utils/format';
 
 type SourceKind = 'file' | 'text';
-type SpeedPreset = 'standard' | 'rgb' | 'quad' | 'turbo';
+type SpeedPreset = 'safe' | 'balanced' | 'fast';
 
 interface LoadedInput {
   bytes: Uint8Array;
@@ -35,48 +35,31 @@ const PRESETS: Record<
   {
     label: string;
     badge: string;
-    grid: GridLayout;
-    color: ColorMode;
     block: number;
     fps: number;
     ecc: 'L' | 'M';
   }
 > = {
-  standard: {
-    label: '1x Standar',
-    badge: '1 QR',
-    grid: '1x1',
-    color: 'mono',
-    block: 140,
-    fps: 8,
-    ecc: 'L',
-  },
-  rgb: {
-    label: '3x RGB',
-    badge: '3 CH',
-    grid: '1x1',
-    color: 'rgb',
+  safe: {
+    label: 'Aman',
+    badge: '100B / 6 FPS',
     block: 100,
-    fps: 7,
-    ecc: 'M',
-  },
-  quad: {
-    label: '4x Quad',
-    badge: '2x2',
-    grid: '2x2',
-    color: 'mono',
-    block: 100,
-    fps: 7,
-    ecc: 'L',
-  },
-  turbo: {
-    label: '12x Turbo',
-    badge: '2x2 RGB',
-    grid: '2x2',
-    color: 'rgb',
-    block: 80,
     fps: 6,
     ecc: 'M',
+  },
+  balanced: {
+    label: 'Seimbang',
+    badge: '160B / 10 FPS',
+    block: 160,
+    fps: 10,
+    ecc: 'L',
+  },
+  fast: {
+    label: 'Ngebut',
+    badge: '240B / 14 FPS',
+    block: 240,
+    fps: 14,
+    ecc: 'L',
   },
 };
 
@@ -88,10 +71,8 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
   const [dragging, setDragging] = useState(false);
 
   const [mode, setMode] = useState<TransferMode>('lt');
-  const [gridLayout, setGridLayout] = useState<GridLayout>('1x1');
-  const [colorMode, setColorMode] = useState<ColorMode>('mono');
-  const [fps, setFps] = useState(8);
-  const [blockSize, setBlockSize] = useState(140);
+  const [fps, setFps] = useState(10);
+  const [blockSize, setBlockSize] = useState(160);
   const [eccLevel, setEccLevel] = useState<'L' | 'M'>('L');
   const [enableCompression, setEnableCompression] = useState(true);
 
@@ -104,21 +85,18 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
 
   const [frameStats, setFrameStats] = useState({
     frameNumber: 0,
-    hasManifest: true,
-    firstSeq: -1,
-    packetCount: 1,
+    isManifest: true,
+    seqOrIndex: -1,
     actualFps: 0,
   });
 
-  const canvasRefs = useRef<Array<HTMLCanvasElement | null>>([null, null, null, null]);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const frameIndexRef = useRef(0);
 
   const fpsId = useId();
   const blockSizeId = useId();
   const modeId = useId();
-  const gridId = useId();
-  const colorId = useId();
   const eccId = useId();
   const compressId = useId();
   const textAreaId = useId();
@@ -126,29 +104,18 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
 
   useWakeLock(isActive && isPlaying);
 
-  const gridCells = gridLayout === '2x2' ? 4 : gridLayout === '2x1' ? 2 : 1;
-  const channelsPerCell = colorMode === 'rgb' ? 3 : 1;
-  const packetsPerFrame = gridCells * channelsPerCell;
-
   const activePreset: SpeedPreset | null = useMemo(() => {
     for (const key of Object.keys(PRESETS) as SpeedPreset[]) {
       const p = PRESETS[key];
-      if (
-        p.grid === gridLayout &&
-        p.color === colorMode &&
-        p.block === blockSize &&
-        p.fps === fps
-      ) {
+      if (p.block === blockSize && p.fps === fps && p.ecc === eccLevel) {
         return key;
       }
     }
     return null;
-  }, [gridLayout, colorMode, blockSize, fps]);
+  }, [blockSize, fps, eccLevel]);
 
   const applyPreset = (key: SpeedPreset) => {
     const p = PRESETS[key];
-    setGridLayout(p.grid);
-    setColorMode(p.color);
     setBlockSize(p.block);
     setFps(p.fps);
     setEccLevel(p.ecc);
@@ -220,7 +187,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
     };
   }, [activeInput, blockSize, mode, enableCompression]);
 
-  // Render QR frame loop (paused automatically when tab is hidden or before Start)
+  // Render 1x1 BnW QR frame loop (paused automatically when tab is hidden or before Start)
   useEffect(() => {
     if (!broadcast) return;
 
@@ -231,17 +198,10 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
     let lastMeasuredFps = 0;
 
     const drawSingleTick = (idx: number) => {
-      const batch = broadcast.generateBatchQr(idx, packetsPerFrame);
-      const cellSizePx = gridCells === 1 ? 460 : 280;
-
-      for (let cell = 0; cell < gridCells; cell++) {
-        const canvas = canvasRefs.current[cell];
-        if (!canvas) continue;
-        const start = cell * channelsPerCell;
-        const texts = batch
-          .slice(start, start + channelsPerCell)
-          .map((slot) => slot.qrText);
-        renderQrToCanvas(canvas, texts, colorMode, eccLevel, cellSizePx);
+      const slot = broadcast.generateFrameQr(idx);
+      const canvas = canvasRef.current;
+      if (canvas) {
+        renderMonoQrToCanvas(canvas, slot.qrText, eccLevel, 460);
       }
 
       if (cancelled) return;
@@ -256,9 +216,8 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
 
       setFrameStats({
         frameNumber: idx + 1,
-        hasManifest: batch.some((b) => b.isManifest),
-        firstSeq: batch.find((b) => !b.isManifest)?.seqOrIndex ?? -1,
-        packetCount: batch.length,
+        isManifest: slot.isManifest,
+        seqOrIndex: slot.seqOrIndex,
         actualFps: lastMeasuredFps,
       });
     };
@@ -288,7 +247,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
       cancelled = true;
       if (timerId !== null) window.clearTimeout(timerId);
     };
-  }, [broadcast, isPlaying, isActive, fps, eccLevel, gridCells, channelsPerCell, packetsPerFrame, colorMode]);
+  }, [broadcast, isPlaying, isActive, fps, eccLevel]);
 
   useEffect(() => {
     const onFsChange = () => {
@@ -326,10 +285,17 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
     setIsPlaying(true);
   }, [broadcast]);
 
-  const estThroughputKbs = ((blockSize * packetsPerFrame * fps) / 1024).toFixed(1);
+  const estThroughputKbs = ((blockSize * fps) / 1024).toFixed(1);
   const estimatedSweepSec = broadcast
-    ? Math.max(0.5, (broadcast.manifest.k * 1.15) / (fps * packetsPerFrame))
+    ? Math.max(0.5, (broadcast.manifest.k * 1.15) / fps)
     : 0;
+  const savedPct =
+    broadcast && broadcast.manifest.compressed && broadcast.manifest.origSize > 0
+      ? Math.max(
+          1,
+          Math.round((1 - broadcast.manifest.compSize / broadcast.manifest.origSize) * 100),
+        )
+      : 0;
 
   return (
     <div className="page-enter stack" style={{ gap: 16 }}>
@@ -342,8 +308,8 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
             Pemancar QR Optik
           </h1>
           <p className="card-meta" style={{ maxWidth: '62ch' }}>
-            Pilih file atau ketik catatan, pilih preset kecepatan optik (Mono / Multi-QR Grid /
-            RGB Color 3x), lalu tekan <strong>Start</strong>.
+            Pilih file atau ketik catatan, pilih preset kecepatan 1x1 hitam-putih (Aman /
+            Seimbang / Ngebut), lalu tekan <strong>Start</strong>.
           </p>
         </div>
         {broadcast && (
@@ -361,9 +327,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
             <div>
               <h2 className="card-title">Layar Proyeksi Optik</h2>
               <p className="card-meta">
-                {packetsPerFrame > 1
-                  ? `Mode paralel ${packetsPerFrame}x paket per frame (${gridLayout.toUpperCase()} ${colorMode.toUpperCase()})`
-                  : 'Mode standar 1x QR monokrom'}
+                1x1 Hitam-Putih (BnW) | Header v2 ringkas 8B + Base45
               </p>
             </div>
             <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--fg-secondary)' }}>
@@ -377,17 +341,11 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
             data-qr-stage="true"
           >
             {broadcast ? (
-              <div className="qr-multi-grid" data-layout={gridLayout}>
-                {Array.from({ length: gridCells }).map((_, idx) => (
-                  <div key={idx} className="qr-cell-box">
-                    <canvas
-                      ref={(el) => {
-                        canvasRefs.current[idx] = el;
-                      }}
-                      aria-label={`Slot QR ${idx + 1} untuk transfer optik`}
-                    />
-                  </div>
-                ))}
+              <div className="qr-canvas-frame">
+                <canvas
+                  ref={canvasRef}
+                  aria-label="QR Code 1x1 hitam-putih untuk transfer optik"
+                />
               </div>
             ) : (
               <div className="qr-canvas-frame">
@@ -406,10 +364,12 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
               <div className="qr-stage-caption mono">
                 <span>
                   {!hasStarted
-                    ? `SIAP | FRAME #1 (${packetsPerFrame} PKT/FRAME)`
+                    ? 'SIAP | FRAME #1 (MANIFEST)'
                     : `FRAME #${frameStats.frameNumber} | ${
-                        frameStats.hasManifest ? 'MANIFEST+' : ''
-                      }${frameStats.packetCount} PKT (SEQ #${Math.max(0, frameStats.firstSeq)})`}
+                        frameStats.isManifest
+                          ? 'MANIFEST'
+                          : `PKT #${Math.max(0, frameStats.seqOrIndex)}`
+                      }`}
                 </span>
                 <span>
                   {isPlaying ? `${frameStats.actualFps || fps} FPS` : `Target ${fps} FPS`} |{' '}
@@ -468,10 +428,10 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
                 <span className="stat-value metric">{formatBytes(broadcast.manifest.origSize)}</span>
               </div>
               <div className="stat-cell">
-                <span className="stat-label">Payload</span>
+                <span className="stat-label">Payload Kirim</span>
                 <span className="stat-value metric">
                   {formatBytes(broadcast.manifest.compSize)}
-                  {broadcast.manifest.compressed ? ' (gz)' : ''}
+                  {broadcast.manifest.compressed ? ` (-${savedPct}%)` : ' (raw)'}
                 </span>
               </div>
               <div className="stat-cell">
@@ -552,7 +512,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
               <span style={{ fontSize: '0.75rem', color: 'var(--fg-secondary)' }}>
                 {loadedInput
                   ? `${formatBytes(loadedInput.bytes.length)} | Klik untuk ganti`
-                  : 'Pakai preset Quad/RGB untuk kirim file lebih cepat'}
+                  : 'Dikompresi lossless Deflate Level-9 + header 8B sebelum transfer'}
               </span>
             </label>
           ) : (
@@ -584,13 +544,13 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
             </div>
           )}
 
-          {activeInput && activeInput.bytes.length > 500 * 1024 && (
+          {activeInput && activeInput.bytes.length > 350 * 1024 && (
             <div className="notice" data-tone="warn" role="status">
               <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
               <span>
-                File berukuran <strong>{formatBytes(activeInput.bytes.length)}</strong>. Gunakan
-                preset <strong>4x Quad</strong> atau <strong>12x Turbo</strong> untuk mempercepat
-                transfer.
+                File berukuran <strong>{formatBytes(activeInput.bytes.length)}</strong>. Pada mode
+                1x1 BnW QR (~1.5-3.3 KB/s), file besar membutuhkan waktu pemindaian lebih lama;
+                gunakan preset <strong>Ngebut</strong> di ruangan terang atau file yang lebih ringkas.
               </span>
             </div>
           )}
@@ -605,7 +565,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
           <div className="control-field">
             <span className="control-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Zap size={13} aria-hidden="true" style={{ color: 'var(--amber)' }} />
-              Preset Kecepatan Optik
+              Preset 1x1 Hitam-Putih
             </span>
             <div className="preset-grid">
               {(Object.keys(PRESETS) as SpeedPreset[]).map((key) => {
@@ -624,45 +584,6 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
                   </button>
                 );
               })}
-            </div>
-          </div>
-
-          <div className="stats-grid">
-            <div className="control-field">
-              <label htmlFor={gridId} className="control-label">
-                Grid QR
-              </label>
-              <select
-                id={gridId}
-                className="select-input"
-                value={gridLayout}
-                onChange={(e) => setGridLayout(e.target.value as GridLayout)}
-              >
-                <option value="1x1">1x1 (Tunggal)</option>
-                <option value="2x1">2x1 (2 QR, 2x)</option>
-                <option value="2x2">2x2 (4 QR, 4x)</option>
-              </select>
-            </div>
-
-            <div className="control-field">
-              <label htmlFor={colorId} className="control-label">
-                Spektrum Warna
-              </label>
-              <select
-                id={colorId}
-                className="select-input"
-                value={colorMode}
-                onChange={(e) => {
-                  const nextColor = e.target.value as ColorMode;
-                  setColorMode(nextColor);
-                  if (nextColor === 'rgb' && eccLevel === 'L') {
-                    setEccLevel('M');
-                  }
-                }}
-              >
-                <option value="mono">Monokrom (1x)</option>
-                <option value="rgb">RGB Color (3x)</option>
-              </select>
             </div>
           </div>
 
@@ -696,7 +617,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
           <div className="control-field">
             <div className="control-label-row">
               <label htmlFor={blockSizeId} className="control-label">
-                Ukuran Blok / Channel
+                Ukuran Blok per Frame
               </label>
               <span className="control-value metric">{blockSize} B</span>
             </div>
@@ -769,7 +690,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
               onChange={(e) => setEnableCompression(e.target.checked)}
               style={{ width: 18, height: 18 }}
             />
-            Kompresi Deflate-Raw sebelum transfer
+            Kompresi Lossless Deflate Level-9 (100% bisa dibalik di HP)
           </label>
         </aside>
       </div>
