@@ -45,15 +45,15 @@ function compose2x2Grid(
 }
 
 function simulateCameraBleed(rgba: Uint8ClampedArray): Uint8ClampedArray {
-  // Simulates realistic LCD-to-camera color crosstalk + warm white-balance shift
+  // Simulates harsh real-world LCD-to-phone Bayer crosstalk (42% bleed) + warm white balance skew
   const noisy = new Uint8ClampedArray(rgba.length);
   for (let i = 0; i < rgba.length; i += 4) {
     const r = rgba[i];
     const g = rgba[i + 1];
     const b = rgba[i + 2];
-    noisy[i] = Math.min(255, Math.round(r * 0.8 + g * 0.1 + b * 0.05 + 12));
-    noisy[i + 1] = Math.min(255, Math.round(g * 0.78 + r * 0.1 + b * 0.08 + 10));
-    noisy[i + 2] = Math.min(255, Math.round(b * 0.75 + g * 0.12 + r * 0.05 + 8));
+    noisy[i] = Math.min(255, Math.round(r * 0.65 + g * 0.22 + b * 0.12 + 18));
+    noisy[i + 1] = Math.min(255, Math.round(g * 0.64 + r * 0.18 + b * 0.16 + 15));
+    noisy[i + 2] = Math.min(255, Math.round(b * 0.56 + g * 0.22 + r * 0.1 + 12));
     noisy[i + 3] = 255;
   }
   return noisy;

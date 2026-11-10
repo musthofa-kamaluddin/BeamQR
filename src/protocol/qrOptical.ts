@@ -152,20 +152,20 @@ export function renderQrToCanvas(
 export function detectHighChroma(rgba: Uint8ClampedArray): boolean {
   let colorfulSamples = 0;
   let totalSamples = 0;
-  // Sample every 24th pixel for O(1) negligible latency (<0.1ms)
-  const step = 24 * 4;
+  // Sample every 12th pixel so even a distant RGB QR (15% of frame area) triggers reliably
+  const step = 12 * 4;
   for (let i = 0; i < rgba.length; i += step) {
     const r = rgba[i];
     const g = rgba[i + 1];
     const b = rgba[i + 2];
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
-    if (max - min > 48) {
+    if (max > 45 && max - min > 26) {
       colorfulSamples++;
     }
     totalSamples++;
   }
-  return totalSamples > 0 && colorfulSamples / totalSamples >= 0.035;
+  return totalSamples > 0 && colorfulSamples / totalSamples >= 0.012;
 }
 
 function cropRgba(
@@ -263,6 +263,67 @@ function scanSingleChannelAll(
   return results;
 }
 
+function estimateWhiteBalance(rgba: Uint8ClampedArray): [number, number, number] {
+  // Find bright low-chroma pixels (white quiet zone / paper / white QR modules) to cancel screen tint
+  let sumR = 0;
+  let sumG = 0;
+  let sumB = 0;
+  let count = 0;
+  const step = 32 * 4;
+  for (let i = 0; i < rgba.length; i += step) {
+    const r = rgba[i];
+    const g = rgba[i + 1];
+    const b = rgba[i + 2];
+    const min = Math.min(r, g, b);
+    const max = Math.max(r, g, b);
+    if (min > 125 && max - min < 38) {
+      sumR += r;
+      sumG += g;
+      sumB += b;
+      count++;
+    }
+  }
+  if (count < 8) return [255, 255, 255];
+  return [
+    Math.max(140, Math.round(sumR / count)),
+    Math.max(140, Math.round(sumG / count)),
+    Math.max(140, Math.round(sumB / count)),
+  ];
+}
+
+function extractCompensatedChannel(
+  rgba: Uint8ClampedArray,
+  channelOffset: 0 | 1 | 2,
+  wb: [number, number, number],
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(rgba.length);
+  const scales: [number, number, number] = [255 / wb[0], 255 / wb[1], 255 / wb[2]];
+  const o1 = channelOffset === 0 ? 1 : 0;
+  const o2 = channelOffset === 2 ? 1 : 2;
+  const s0 = scales[channelOffset];
+  const s1 = scales[o1];
+  const s2 = scales[o2];
+
+  // Compensate ~36% spectral crosstalk from adjacent RGB subpixels / camera Bayer filter
+  const alpha = 0.36;
+  const invNorm = 1 / (1 - alpha);
+
+  for (let i = 0; i < rgba.length; i += 4) {
+    const c0 = Math.min(255, rgba[i + channelOffset] * s0);
+    const c1 = Math.min(255, rgba[i + o1] * s1);
+    const c2 = Math.min(255, rgba[i + o2] * s2);
+    const bleed = (c1 + c2) * 0.5;
+    let v = Math.round((c0 - alpha * bleed) * invNorm);
+    if (v < 0) v = 0;
+    else if (v > 255) v = 255;
+    out[i] = v;
+    out[i + 1] = v;
+    out[i + 2] = v;
+    out[i + 3] = 255;
+  }
+  return out;
+}
+
 function extractChannelGrayscale(rgba: Uint8ClampedArray, channelOffset: 0 | 1 | 2): Uint8ClampedArray {
   const out = new Uint8ClampedArray(rgba.length);
   for (let i = 0; i < rgba.length; i += 4) {
@@ -301,9 +362,33 @@ export function decodeFrameQrs(
   }
 
   const found = new Set<string>();
+  const wb = estimateWhiteBalance(rgba);
+
   for (const offset of [0, 1, 2] as const) {
-    const gray = extractChannelGrayscale(rgba, offset);
-    const channelResults = scanSingleChannelAll(decodeQr, gray, width, height, maxQrs, attemptBoth);
+    // Pass 1: White-balanced & crosstalk-compensated channel (handles real LCD-to-camera bleed)
+    const compensated = extractCompensatedChannel(rgba, offset, wb);
+    let channelResults = scanSingleChannelAll(
+      decodeQr,
+      compensated,
+      width,
+      height,
+      maxQrs,
+      attemptBoth,
+    );
+
+    // Pass 2: Raw channel fallback if compensated pass yielded nothing
+    if (channelResults.length === 0) {
+      const rawGray = extractChannelGrayscale(rgba, offset);
+      channelResults = scanSingleChannelAll(
+        decodeQr,
+        rawGray,
+        width,
+        height,
+        maxQrs,
+        attemptBoth,
+      );
+    }
+
     for (const t of channelResults) {
       found.add(t);
     }

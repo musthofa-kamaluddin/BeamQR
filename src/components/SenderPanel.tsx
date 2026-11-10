@@ -32,12 +32,52 @@ interface SenderPanelProps {
 
 const PRESETS: Record<
   SpeedPreset,
-  { label: string; badge: string; grid: GridLayout; color: ColorMode; block: number; fps: number }
+  {
+    label: string;
+    badge: string;
+    grid: GridLayout;
+    color: ColorMode;
+    block: number;
+    fps: number;
+    ecc: 'L' | 'M';
+  }
 > = {
-  standard: { label: '1x Standar', badge: '1 QR', grid: '1x1', color: 'mono', block: 140, fps: 8 },
-  rgb: { label: '3x RGB', badge: '3 CH', grid: '1x1', color: 'rgb', block: 120, fps: 7 },
-  quad: { label: '4x Quad', badge: '2x2', grid: '2x2', color: 'mono', block: 100, fps: 7 },
-  turbo: { label: '12x Turbo', badge: '2x2 RGB', grid: '2x2', color: 'rgb', block: 100, fps: 6 },
+  standard: {
+    label: '1x Standar',
+    badge: '1 QR',
+    grid: '1x1',
+    color: 'mono',
+    block: 140,
+    fps: 8,
+    ecc: 'L',
+  },
+  rgb: {
+    label: '3x RGB',
+    badge: '3 CH',
+    grid: '1x1',
+    color: 'rgb',
+    block: 100,
+    fps: 7,
+    ecc: 'M',
+  },
+  quad: {
+    label: '4x Quad',
+    badge: '2x2',
+    grid: '2x2',
+    color: 'mono',
+    block: 100,
+    fps: 7,
+    ecc: 'L',
+  },
+  turbo: {
+    label: '12x Turbo',
+    badge: '2x2 RGB',
+    grid: '2x2',
+    color: 'rgb',
+    block: 80,
+    fps: 6,
+    ecc: 'M',
+  },
 };
 
 export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
@@ -111,6 +151,7 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
     setColorMode(p.color);
     setBlockSize(p.block);
     setFps(p.fps);
+    setEccLevel(p.ecc);
   };
 
   const activeInput: LoadedInput | null = useMemo(() => {
@@ -611,7 +652,13 @@ export function SenderPanel({ isActive, headingRef }: SenderPanelProps) {
                 id={colorId}
                 className="select-input"
                 value={colorMode}
-                onChange={(e) => setColorMode(e.target.value as ColorMode)}
+                onChange={(e) => {
+                  const nextColor = e.target.value as ColorMode;
+                  setColorMode(nextColor);
+                  if (nextColor === 'rgb' && eccLevel === 'L') {
+                    setEccLevel('M');
+                  }
+                }}
               >
                 <option value="mono">Monokrom (1x)</option>
                 <option value="rgb">RGB Color (3x)</option>

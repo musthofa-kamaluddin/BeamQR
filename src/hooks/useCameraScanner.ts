@@ -414,7 +414,8 @@ export function useCameraScanner({ onQrTexts }: UseCameraScannerOptions) {
 
                   if (
                     decodedTexts.length === 0 &&
-                    (pref === 'jsqr' ||
+                    (cMode === 'rgb' ||
+                      pref === 'jsqr' ||
                       (pref === 'auto' &&
                         (!canTryNative || nativeMissStreak >= 2 || loopTick % 3 === 0)))
                   ) {
